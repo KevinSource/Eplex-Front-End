@@ -46,6 +46,7 @@
             this.UserSelectAllToggle = new System.Windows.Forms.Button();
             this.PrevUser = new System.Windows.Forms.Button();
             this.NextUser = new System.Windows.Forms.Button();
+            this.GenerateRandomButton = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.AccessCode)).BeginInit();
             this.statusStrip1.SuspendLayout();
             this.AccessCodeGrpBox.SuspendLayout();
@@ -256,6 +257,16 @@
             this.NextUser.UseVisualStyleBackColor = true;
             this.NextUser.Click += new System.EventHandler(this.NextUser_Click);
             // 
+            // GenerateRandomButton
+            // 
+            this.GenerateRandomButton.Location = new System.Drawing.Point(325, 106);
+            this.GenerateRandomButton.Name = "GenerateRandomButton";
+            this.GenerateRandomButton.Size = new System.Drawing.Size(196, 28);
+            this.GenerateRandomButton.TabIndex = 17;
+            this.GenerateRandomButton.Text = "Generate Random";
+            this.GenerateRandomButton.UseVisualStyleBackColor = true;
+            this.GenerateRandomButton.Click += new System.EventHandler(this.GenerateRandomButton_Click);
+            // 
             // UserUpdateForm
             // 
             this.AcceptButton = this.OKButton;
@@ -263,6 +274,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.CancelButton1;
             this.ClientSize = new System.Drawing.Size(928, 450);
+            this.Controls.Add(this.GenerateRandomButton);
             this.Controls.Add(this.NextUser);
             this.Controls.Add(this.PrevUser);
             this.Controls.Add(this.SiteDoorsLabel);
@@ -310,5 +322,6 @@
         private System.Windows.Forms.Button UserSelectAllToggle;
         public System.Windows.Forms.Button PrevUser;
         public System.Windows.Forms.Button NextUser;
+        private System.Windows.Forms.Button GenerateRandomButton;
     }
 }

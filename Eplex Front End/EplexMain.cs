@@ -3,19 +3,25 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Media;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using System.Windows.Automation;
 using System.Windows.Forms;
 using Microsoft.Office.Interop.Excel;
 using Microsoft.Win32;
+
 
 public struct LockSettings
 {
@@ -129,6 +135,15 @@ namespace Eplex_Front_End
             public string SiteDataPath2020 { get; set; }
 
         }
+        /***********************************************************************************************************************
+        ** This class holds the signed in user data 
+        ***********************************************************************************************************************/
+        public class SignedInUserShr
+        {
+            public string SignedInUser { get; set; }
+            public string LogFileDataPathAndFile { get; set; }
+
+    }
 
         /***********************************************************************************************************************
         ** This class holds the data to share with the generate the PCMUnit file form
@@ -177,6 +192,8 @@ namespace Eplex_Front_End
             public string LatestReportPathLit { get; set; }
             public string LatestReportFile { get; set; }
             public string LatestReportFileLit { get; set; }
+            public string LatestReportBaseFileName { get; set; }
+            public string LatestReportBaseFileNameLit { get; set; }
             public string EplexRegistryKeyPart1 { get; set; }
             public bool Cancel { get; set; }
             public bool Test { get; set; }
@@ -194,6 +211,8 @@ namespace Eplex_Front_End
         const string DoorActionEdit = "Edit";
         const string DoorActionDelete = "Delete";
         public Dictionary<string, int> AuditDictionary = new Dictionary<string, int>();
+        string logBeforeInfo;
+        string logAfterInfo;
 
         /***********************************************************************************************************************
         **Audit related Variables
@@ -218,6 +237,7 @@ namespace Eplex_Front_End
         public List<string> Sites = new List<string>();
         public List<string> LockFunctions = new List<string>();
         public SiteFormShr SharedSiteData = new SiteFormShr();
+        public SignedInUserShr SharedSignedInUserData = new SignedInUserShr();
         public PCMUnitFormShr SharedPCMUnitData = new PCMUnitFormShr();
         public RegistrySettingsFormShr SharedRegistryFormData = new RegistrySettingsFormShr();
         const string PCMUnitCtrlFileName = "PCMUnitControlRecs.txt";
@@ -249,6 +269,7 @@ namespace Eplex_Front_End
         string LatestReportFileName = @"LockData.xlsx";
         string FuntionList = @"LockFunctions.txt";
         string SaveState = @"SaveState.txt";
+        string LogFile = @"EplexFrontEndLog.log";
         string SaveStateDataPathAndFile;
         string SaveStateDataPathAndFile2020;
         const string FldDelim = "%%!!%%";
@@ -262,6 +283,10 @@ namespace Eplex_Front_End
         public bool DemoPgm = false;
         public string[] args;
         public string catchData;
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern void SwitchToThisWindow(IntPtr hWnd, bool turnOn);
+
+
 
 
         public EplexLockManagement()
@@ -285,26 +310,41 @@ namespace Eplex_Front_End
         ***********************************************************************************************************************/
         {
             (DataPath, DataPath2020, MUnitFolder, EplexAppPath) = GetRegistryInfo();
-            SiteDataPath = DataPath + @"Sites";
-            SiteDataPath2020 = DataPath2020 + @"Sites";
+            SiteDataPath = Path.Combine(DataPath , @"Sites");
+            SiteDataPath2020 = Path.Combine(DataPath2020 , @"Sites");
             SharedSiteData.SiteDataPath = SiteDataPath;
             SharedSiteData.SiteDataPath2020 = SiteDataPath2020;
-            SaveStateDataPathAndFile = SiteDataPath2020 + @"\" + SaveState;
-            LockFunctionListPathAndFile = SiteDataPath2020 + @"\" + FuntionList;
+            SaveStateDataPathAndFile = Path.Combine(SiteDataPath2020 , SaveState);
+            SharedSignedInUserData.LogFileDataPathAndFile = Path.Combine(SiteDataPath2020 , LogFile);
+            if (SharedSignedInUserData.SignedInUser == null)
+                SharedSignedInUserData.SignedInUser = Environment.UserName;
+            LockFunctionListPathAndFile = Path.Combine(SiteDataPath2020 , FuntionList);
 
-            ReadEplexAppStateData(SaveStateDataPathAndFile);
             ReadEplexLockFuntionList(LockFunctionListPathAndFile);
-
             ReadEplexSiteData(SiteDataPath2020);
+            ReadEplexAppStateData(SaveStateDataPathAndFile);
+
             SiteListView.Visible = true;
             LoadSiteListbox();
             //            RefreshLockAndUser(); This gets called when LoadSiteListBox triggers a SelectionChange event
             //            var SiteListView = SelectedIndexChanged.isTrusted;
 
-            PCMUnitCtlFullFilePath = DataPath2020 + @"Sites\" + PCMUnitCtrlFileName;
+            PCMUnitCtlFullFilePath = Path.Combine(DataPath2020 , PCMUnitCtrlFileName);
             printProgressGroupBox.Visible = false;
             printProgressBar.Visible = false;
             printProgessStatus.Visible = false;
+            Process currentProcess = Process.GetCurrentProcess();
+            Process[] EplexList = Process.GetProcessesByName(currentProcess.ProcessName);   // "Eplex Front End"
+            foreach (Process p in EplexList)
+            {
+                if (p.MainWindowHandle != IntPtr.Zero)
+                {
+                    this.Hide();
+                    SwitchToThisWindow(p.MainWindowHandle, true);
+                    Environment.Exit(0);
+                }
+            }
+
 
         }
         private void RefreshLockAndUser()
@@ -326,11 +366,13 @@ namespace Eplex_Front_End
         }
         private void EstablishPaths()
         {
-            string LockDataPath = DataPath2020 + @"Sites\" + SharedDoorData.site + @"\Lock Configuration";
+            string LockDataPath = Path.Combine(DataPath2020 + @"Sites\");
+            LockDataPath = Path.Combine(LockDataPath, SharedDoorData.site);
+            LockDataPath =   Path.Combine(LockDataPath, @"Lock Configuration");
             SharedSiteData.site = SharedDoorData.site;
-            LockDataPathAndFile = LockDataPath + @"\" + LockDataFileName;
+            LockDataPathAndFile = Path.Combine(LockDataPath , LockDataFileName);
             SharedDoorData.LockDataPathAndFile = LockDataPathAndFile;
-            UserDataPathAndFile = LockDataPath + @"\" + UserDataFileName;
+            UserDataPathAndFile = Path.Combine(LockDataPath , UserDataFileName);
             SharedDoorUserData.UserDataPathAndFile = UserDataPathAndFile;
         }
         private void LoadTestData()
@@ -463,6 +505,7 @@ namespace Eplex_Front_End
             bool DataEncrypted=false;
             string[] DataRecordsIn;
             Array.Clear(Users, 0, 299);
+            UserDictionary.Clear();
             int Unum;
 
             for (int i = 0; i <= MaxUsers; i++)
@@ -585,8 +628,15 @@ namespace Eplex_Front_End
             }
             catch (Exception e2)
             {
-                SharedDoorData.site = "";
-                DialogResult OKFlag = MessageBox.Show(e2.Message , "Error in ReadEplexAppStateData", MessageBoxButtons.OK);
+                /**********************************************************************************************************
+                * No previous application state data was found, so if there are any sites, pick the first one
+                **********************************************************************************************************/
+                if (Sites.Count > 0)
+                {
+                    SharedDoorData.site = Sites[0];
+                    SharedSiteData.site = Sites[0];
+                }
+                //DialogResult OKFlag = MessageBox.Show(e2.Message , "Error in ReadEplexAppStateData", MessageBoxButtons.OK);
                 return;
             }
         }
@@ -594,8 +644,8 @@ namespace Eplex_Front_End
         /***********************************************************************************************************************
         ** This reads all available lock function types
         ***********************************************************************************************************************/
-        {
-            string LockFunctoinListDataRecord = "";
+                {
+                    string LockFunctoinListDataRecord = "";
             bool DataEncrypted=false;
 
             try
@@ -810,6 +860,7 @@ namespace Eplex_Front_End
             SharedRegistryFormData.MUnitPathLit = "MUnitFolder";
             SharedRegistryFormData.EplexDataEncryptionLit = "DataProtection";
             SharedRegistryFormData.LatestReportPathLit = "ReportPath";
+            SharedRegistryFormData.LatestReportBaseFileNameLit = "LatestReportBaseFileName";
             SharedRegistryFormData.LatestReportFileLit = "ReportFile";
 
             try
@@ -839,7 +890,14 @@ namespace Eplex_Front_End
                         }
                         else
                         {
-                            DataPath2020 = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+                            if (DataPath.Trim() != "")
+                            {
+                                DataPath2020 = DataPath;
+                            }
+                            else
+                            {
+                                DataPath2020 = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+                            }
                             SharedRegistryFormData.DataPath2020 = DataPath2020;
                         }
                         catchInfo = SharedRegistryFormData.MUnitPathLit;
@@ -884,6 +942,17 @@ namespace Eplex_Front_End
                             SharedRegistryFormData.LatestReportFile = LatestReportFileName;
                         }
                         catchInfo = SharedRegistryFormData.LatestReportPathLit;
+                        o = key.GetValue(SharedRegistryFormData.LatestReportBaseFileNameLit);
+                        if (o != null)
+                        {
+                            RegistryEntry = o.ToString();
+                            SharedRegistryFormData.LatestReportBaseFileName = RegistryEntry;
+                        }
+                        else
+                        {
+                            SharedRegistryFormData.LatestReportBaseFileName = LatestReportFileName;
+                        }
+                        catchInfo = SharedRegistryFormData.LatestReportPathLit;
                         o = key.GetValue(SharedRegistryFormData.LatestReportPathLit);
                         if (o != null)
                         {
@@ -893,7 +962,7 @@ namespace Eplex_Front_End
                         else
                         {
                             MyDocumentsPath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-                            SharedRegistryFormData.LatestReportPath = MyDocumentsPath + @"\" + @"Eplex Reports\";
+                            SharedRegistryFormData.LatestReportPath = Path.Combine(MyDocumentsPath , @"Eplex Reports\");
                         }
                     }
                 }
@@ -914,8 +983,8 @@ namespace Eplex_Front_End
                 SharedRegistryFormData.Test = true;
                 MyDocumentsPath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
 
-                DataPath = MyDocumentsPath + @"\" + @"EplexDemo\";
-                DataPath2020 = MyDocumentsPath + @"\" + @"EplexDemo\";
+                DataPath = Path.Combine(MyDocumentsPath , @"EplexDemo\");
+                DataPath2020 = Path.Combine(MyDocumentsPath,  @"EplexDemo\");
                 SharedRegistryFormData.DataPath = DataPath;
                 SharedRegistryFormData.DataPath2020 = DataPath2020;
                 if (DemoPgm)
@@ -923,10 +992,10 @@ namespace Eplex_Front_End
                     EplexAppPath = DataPath2020;
                     SharedRegistryFormData.AppPath = DataPath2020;
                 }
-                MUnitFolder = DataPath2020 + @"Munit\";
+                MUnitFolder = Path.Combine(DataPath2020 , @"Munit\");
                 SharedRegistryFormData.MUnitPath = MUnitFolder;
                 SharedRegistryFormData.LatestReportFile = LatestReportFileName;
-                SharedRegistryFormData.LatestReportPath = MyDocumentsPath + @"\" + @"Eplex Reports\";
+                SharedRegistryFormData.LatestReportPath = Path.Combine(MyDocumentsPath , @"Eplex Reports\");
 
                 return (DataPath: DataPath, DataPath2020: DataPath2020, MUnitFolder: MUnitFolder, EplexAppPath: EplexAppPath);
             }
@@ -1131,11 +1200,30 @@ namespace Eplex_Front_End
             SharedDoorData.LockListPtr = Lock;
             SharedDoorData.LockSelectedPtr = Lock[0];
 
-            UserUpdateForm UserForm = new UserUpdateForm(SharedUserData, SharedDoorData, this);
+            UserUpdateForm UserForm = new UserUpdateForm(SharedUserData, SharedDoorData, SharedSignedInUserData,this);
             if (UserAddFlag)
             {
                 UserForm.PrevUser.Enabled = false;
                 UserForm.NextUser.Enabled = false;
+            }
+            //******************************************************************************************************************
+            //* Capture Before information for log 
+            //******************************************************************************************************************
+            string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            if (Users[SharedUserData.num].Name.Trim() == "")
+                logBeforeInfo = null;
+            else
+            {
+                logBeforeInfo = $"User,Before Change,{SharedSignedInUserData.SignedInUser},{LogDateTime}," +
+                        $"User Id Location: {Users[SharedUserData.num].Num}," +
+                        $"User: {Users[SharedUserData.num].Name}," +
+                        $"User Code: {Users[SharedUserData.num].Code}," +
+                        $"User Type: {Users[SharedUserData.num].Type} Doors: ";
+                foreach (string Door in Users[SharedUserData.num].ThisUserDoorListPtr)
+                {
+                    logBeforeInfo += $"{Door},";
+                }
+                logBeforeInfo = logBeforeInfo.TrimEnd(',');
             }
             this.Visible = false;
             UserForm.ShowDialog(this);
@@ -1146,15 +1234,56 @@ namespace Eplex_Front_End
                 //******************************************************************************************************************
                 //* Update the Users array 
                 //******************************************************************************************************************
-                //string TmpStr = SharedUserData.num.ToString("000");
                 Users[SharedUserData.num].Num = SharedUserData.num;
                 Users[SharedUserData.num].Name = SharedUserData.name;
                 Users[SharedUserData.num].Code = SharedUserData.code;
                 Users[SharedUserData.num].Type = SharedUserData.type;
                 UserDictionary[SharedUserData.code] = SharedUserData.name;
+
+                string LogRecType;
+                if (logBeforeInfo == null)
+                {
+                    LogRecType = "User,After Add ,";
+                }
+                else
+                {
+                    LogRecType = "User,After Change ,";
+                }
+                logAfterInfo = $"{LogRecType}{SharedSignedInUserData.SignedInUser},{LogDateTime}," +
+                    $"User Id Location: {Users[SharedUserData.num].Num}," +
+                    $"User: {Users[SharedUserData.num].Name}," +
+                    $"User Code: {Users[SharedUserData.num].Code}," +
+                    $"User Type: {Users[SharedUserData.num].Type} Doors:";
+                foreach (string Door in Users[SharedUserData.num].ThisUserDoorListPtr)
+                {
+                    logAfterInfo += $"{Door},";
+                }
+                logAfterInfo = logAfterInfo.TrimEnd(',');
+                WriteLog(logBeforeInfo, logAfterInfo);
             }
-
-
+        }
+        private void WriteLog(string LogBeforeInfo, string LogAfterInfo)
+        {
+            if (LogBeforeInfo != null)
+                if (LogBeforeInfo.Contains("Generated") == false)
+                    LogBeforeInfo += $",Path:{SharedSiteData.SiteDataPath2020}";
+            if (LogAfterInfo != null)
+                LogAfterInfo += $",Path:{SharedSiteData.SiteDataPath2020}";
+            using (StreamWriter w = File.AppendText(SharedSignedInUserData.LogFileDataPathAndFile))
+            {
+                if (LogBeforeInfo != null)
+                {
+                    string encryptedData = encrypt.AesEncryptor(LogBeforeInfo, this, EncryptIt:SharedRegistryFormData.EplexDataEncryption);
+                    //w.WriteLine(LogBeforeInfo);
+                    w.WriteLine(encryptedData);
+                }
+                if (LogAfterInfo != null)
+                {
+                    string encryptedData = encrypt.AesEncryptor(LogAfterInfo, this, EncryptIt:SharedRegistryFormData.EplexDataEncryption);
+                    //w.WriteLine(LogAfterInfo);
+                    w.WriteLine(encryptedData);
+                }
+            }
         }
         private void UserListView_KeyUp(object sender, KeyEventArgs e)
         /***********************************************************************************************************************
@@ -1164,6 +1293,10 @@ namespace Eplex_Front_End
             if (e.KeyCode == Keys.Delete)
             {
                 UserDeleteButton_Click(sender, e);
+            }
+            if (e.KeyCode == Keys.F2)
+            {
+                UserListView_DoubleClick(sender, e);
             }
         }
         private void ToolBarSites_Click(object sender, EventArgs e)
@@ -1227,11 +1360,23 @@ namespace Eplex_Front_End
                 if (YNFlag == DialogResult.Yes)
                 {
                     int UsrNum = Int32.Parse(this.UserListView.SelectedItems[0].SubItems[0].Text);
+                    string SaveUserIDLocation = Users[UsrNum].Num.ToString();
+                    string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    logBeforeInfo = $"User,Before Delete,{SharedSignedInUserData.SignedInUser},{LogDateTime}," +
+                    $"User Id Location: {Users[UsrNum].Num}," +
+                    $"User: {Users[UsrNum].Name}," +
+                    $"User Code: {Users[UsrNum].Code}," +
+                    $"User Type: {Users[UsrNum].Type}";
+
                     UserDictionary.Remove(Users[UsrNum].Code);
                     Users[UsrNum].Name = "";
                     Users[UsrNum].Code = 0;
                     Users[UsrNum].Type = "";
                     UserListView.SelectedItems[0].Remove();
+
+                    logAfterInfo = $"User,After Delete ,{SharedSignedInUserData.SignedInUser},{LogDateTime}," +
+                    $"User Id Location: {SaveUserIDLocation}, Deleted"; 
+                    WriteLog(logBeforeInfo, logAfterInfo);
 
                     WriteEplexUserData(UserDataPathAndFile);
                     //******************************************************************************************************************
@@ -1358,8 +1503,40 @@ namespace Eplex_Front_End
                 EstablishPaths();
 
                 WriteEplexLockData(LockDataPathAndFile);
+
+                string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                logBeforeInfo = $"Door,Before,{SharedSignedInUserData.SignedInUser},{LogDateTime},Nothing - Door was added, see After record";
+                logAfterInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr,"After");
+                WriteLog(logBeforeInfo, logAfterInfo);
+
             }
 
+        }
+        private string FormatDoorLog(LockSettings DoorData,string BeforeAfterLit)
+        {
+            string LogRecOut = $"Door,{BeforeAfterLit}, Name: {DoorData.Name}," +
+                $"ID: {DoorData.ID}," +
+                $"Function: {DoorData.Function}," +
+                $"UnlockTime:{DoorData.UnlockTime.ToString()}," +
+                $"BuzzerVolume:{DoorData.BuzzerVolume.ToString()}," +
+                $"TamperCount:{DoorData.TamperCount.ToString()}," +
+                $"TamperShutdownTime:{DoorData.TamperShutdownTime.ToString()}," +
+                $"PassageMode:{DoorData.PassageMode.ToString()}," +
+                $"PassageModeOpenTimeLimit:{DoorData.PassageModeOpenTimeLimit.ToString()}," +
+                $"LockOutMode:{DoorData.LockOutMode.ToString()}," +
+                $"AccessCodeLength:{DoorData.AccessCodeLength.ToString()}," +
+                $"RemoteUnlock:{DoorData.RemoteUnlock.ToString()}," +
+                $"LatchHoldback:{DoorData.LatchHoldback.ToString()},";
+            if (DoorData.AuditFlagDictionary != null)
+            {
+                foreach (KeyValuePair<string, int> AFlg in DoorData.AuditFlagDictionary)
+                {
+                    LogRecOut += $"{AFlg.Key}:{DoorData.AuditFlags[AFlg.Value].ToString()},";
+                }
+            }
+            LogRecOut = LogRecOut.TrimEnd(',');
+
+            return LogRecOut;
         }
 
         private void DoorEditButton_Click(object sender, EventArgs e)
@@ -1383,6 +1560,8 @@ namespace Eplex_Front_End
         private void EditDoorData(ref int DoorIndex)
         {
             string saveDoorName = SharedDoorData.LockSelectedPtr.Name;
+            logBeforeInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr,"Before");
+
             DoorLockForm DoorForm = new DoorLockForm(SharedDoorData);
             this.Visible = false;
             DoorForm.ShowDialog(this);
@@ -1401,8 +1580,13 @@ namespace Eplex_Front_End
                 selectedItem.SubItems[0].Text = SharedDoorData.LockSelectedPtr.Name;
                 selectedItem.SubItems[1].Text = SharedDoorData.LockSelectedPtr.ID;
                 selectedItem.SubItems[2].Text = SharedDoorData.LockSelectedPtr.Function;
+
+
                 WriteEplexLockData(LockDataPathAndFile);
                 DoorChgUpdateUsers(saveDoorName, DoorActionEdit);
+                logAfterInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr,"After");
+                WriteLog(logBeforeInfo, logAfterInfo);
+
             }
         }
         private void DoorChgUpdateUsers(string saveDoorName, string DoorAction)
@@ -1507,6 +1691,8 @@ namespace Eplex_Front_End
             if (this.DoorListView.SelectedItems.Count > 0)
             {
                 EditDoorDataSetup(ref DoorIndex);
+                logBeforeInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr, "Copy From");
+
                 DoorCopyForm DoorCopyForm = new DoorCopyForm(SharedDoorData);
                 this.Visible = false;
                 DoorCopyForm.ShowDialog(this);
@@ -1532,7 +1718,8 @@ namespace Eplex_Front_End
 
                     DoorListView.Items.AddRange(new ListViewItem[] { item1 });
                     WriteEplexLockData(LockDataPathAndFile);
-
+                    logAfterInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr, "Copy To");
+                    WriteLog(logBeforeInfo, logAfterInfo);
                 }
             }
             else
@@ -1554,6 +1741,7 @@ namespace Eplex_Front_End
                     DialogResult YNFlag = MessageBox.Show("Do you want to delete " + selectedItem.SubItems[0].Text + " with ID " + selectedItem.SubItems[1].Text, "Confirm Delete", MessageBoxButtons.YesNo);
                     if (YNFlag == DialogResult.Yes)
                     {
+                        logBeforeInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr, "Before Delete");
                         saveDoorName = this.DoorListView.SelectedItems[0].Text;
                         int DoorIndex = FindDoorListEntry(saveDoorName);
 
@@ -1565,6 +1753,11 @@ namespace Eplex_Front_End
                         DoorListView.SelectedItems[0].Remove();
                         WriteEplexLockData(LockDataPathAndFile);
                         DoorChgUpdateUsers(saveDoorName, DoorActionDelete);
+
+                        string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        logAfterInfo = $"Door,After Delete,{SharedSignedInUserData.SignedInUser},{LogDateTime},Nothing - Door was deleted, see Before record";
+                        WriteLog(logBeforeInfo, logAfterInfo);
+
                     }
                 }
                 else
@@ -1584,6 +1777,10 @@ namespace Eplex_Front_End
             {
                 DoorDeleteButton_Click(sender, e);
             }
+            if (e.KeyCode == Keys.F2)
+            {
+                DoorEditButton_Click(sender, e);
+            }
 
         }
 
@@ -1601,6 +1798,9 @@ namespace Eplex_Front_End
 
             SharedSiteData.site = SiteListView.SelectedItems[0].Text;
             SharedSiteData.DialogFunction = "Rename";
+            string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            logBeforeInfo = $"Site,Before,{SharedSignedInUserData.SignedInUser},{LogDateTime},Site:{SharedSiteData.site}";
+
 
             SiteName SiteNameForm = new SiteName(SharedSiteData);
             this.Visible = false;
@@ -1608,11 +1808,13 @@ namespace Eplex_Front_End
             this.Visible = true;
             if (SharedSiteData.Cancel == false)
             {
-//                SiteDataPath = SharedSiteData.SiteDataPath;
                 SiteDataPath2020 = SharedSiteData.SiteDataPath2020;
                 SharedDoorData.site = SharedSiteData.site;
                 ReadEplexSiteData(SiteDataPath2020);
                 LoadSiteListbox();
+                logAfterInfo = $"Site,After,{SharedSignedInUserData.SignedInUser},{LogDateTime},Site:{SharedSiteData.site}";
+                WriteLog(logBeforeInfo, logAfterInfo);
+
             }
 
         }
@@ -1629,11 +1831,17 @@ namespace Eplex_Front_End
             this.Visible = true;
             if (SharedSiteData.Cancel == false)
             {
-//                SiteDataPath = SharedSiteData.SiteDataPath;
                 SiteDataPath2020 = SharedSiteData.SiteDataPath2020;
                 SharedDoorData.site = SharedSiteData.site;
                 ReadEplexSiteData(SiteDataPath2020);
                 LoadSiteListbox();
+                string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                logBeforeInfo = $"Site,Before,{SharedSignedInUserData.SignedInUser},{LogDateTime},Nothing - Site was added see After record";
+                logAfterInfo = $"Site,After,{SharedSignedInUserData.SignedInUser},{LogDateTime},Site:{SharedSiteData.site}";
+                WriteLog(logBeforeInfo, logAfterInfo);
+
+
+
             }
         }
 
@@ -1652,13 +1860,18 @@ namespace Eplex_Front_End
                 if (YNFlag == DialogResult.Yes)
                 {
                     SiteDataPath2020 = SharedSiteData.SiteDataPath2020;
-                    String PathOnly = SiteDataPath2020 + @"\" + selectedItem.SubItems[0].Text;
+                    String PathOnly = Path.Combine(SiteDataPath2020 , selectedItem.SubItems[0].Text);
                     try
                     {
                         Directory.Delete(PathOnly, true);
                         ReadEplexSiteData(SiteDataPath2020);
                         SiteListView.Visible = true;
                         LoadSiteListbox();
+                        string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        logBeforeInfo = $"Site,Before,{SharedSignedInUserData.SignedInUser},{LogDateTime},Site:{selectedItem.SubItems[0].Text}";
+                        logAfterInfo = $"Site,After,{SharedSignedInUserData.SignedInUser},{LogDateTime},Nothing - Site was deleted see Before record";
+                        WriteLog(logBeforeInfo, logAfterInfo);
+
                     }
                     catch (Exception e1)
                     {
@@ -1680,6 +1893,13 @@ namespace Eplex_Front_End
             }
                 ListViewItem selectedItem = SiteListView.SelectedItems[0];
             string SiteName = selectedItem.SubItems[0].Text;
+
+            DialogResult YNFlag = MessageBox.Show(SiteName + "\n\n\n" + " If correct, press OK, if not, press cancel and select the correct site to be generated","Generate PCM Unit File for Site", MessageBoxButtons.OKCancel);
+            if (YNFlag == DialogResult.Cancel)
+            {
+                return;
+            }
+
 
             string CtrlRec = "";
             string UserRec = "";
@@ -1757,6 +1977,11 @@ namespace Eplex_Front_End
             this.Visible = false;
             PCMUnitForm.ShowDialog(this);
             this.Visible = true;
+            string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            logBeforeInfo = $"PCM Generate,Generated,{SharedSignedInUserData.SignedInUser},{LogDateTime}, Site: {SiteName}, Generated to file:{MUnitDataPath}, PCMUnit Pgm Expects Data to be in: {SharedRegistryFormData.MUnitPath}";
+            logAfterInfo = null;
+            WriteLog(logBeforeInfo, logAfterInfo);
+
 
         }
 
@@ -1773,6 +1998,9 @@ namespace Eplex_Front_End
             }
 
             SharedDoorUserData.Cancel = false;
+            /***********************************************************************************************************************
+            ** Save the user information for the log
+            ***********************************************************************************************************************/
 
             if (this.DoorListView.SelectedItems.Count == 0)
             {
@@ -1787,6 +2015,8 @@ namespace Eplex_Front_End
                 SharedDoorUserData.Users = Users;
                 SharedDoorUserData.DoorRowSelected = DoorListView.SelectedItems[0].Index;
 
+                DoorUserFormShr SaveDoorUserFormData = CopyDoorUserData(SharedDoorUserData);
+
                 DoorUsersForm DoorUsersNameForm = new DoorUsersForm(SharedDoorUserData, this);
                 this.Visible = false;
                 DoorUsersNameForm.ShowDialog(this);
@@ -1794,6 +2024,38 @@ namespace Eplex_Front_End
                 if (SharedDoorUserData.Cancel == false)
                 {
                     WriteEplexUserData(UserDataPathAndFile);
+
+                    /***********************************************************************************************************************
+                    ** If something changed, write a log record
+                    ***********************************************************************************************************************/
+                    if (SaveDoorUserFormData != SharedDoorUserData)
+                    {
+                        for (int i=0; i < SaveDoorUserFormData.Users.Length; i++)
+                        {
+                            //if (SaveDoorUserFormData.Users[i] != SharedDoorUserData.Users[i])
+                            if (UserAccessEqual(SaveDoorUserFormData.Users[i], SharedDoorUserData.Users[i]))
+                            {
+                            } else
+                            {
+                                string LogDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                                logBeforeInfo = $"DoorUser,Before,{SharedSignedInUserData.SignedInUser},{LogDateTime},";
+                                logBeforeInfo += $"{SaveDoorUserFormData.Users[i].Name},";
+                                foreach (string door in SaveDoorUserFormData.Users[i].ThisUserDoorListPtr)
+                                {
+                                    logBeforeInfo += $"{door},";
+                                }
+                                logAfterInfo = $"DoorUser,After ,{SharedSignedInUserData.SignedInUser},{LogDateTime},";
+                                logAfterInfo += $"{SharedDoorUserData.Users[i].Name},";
+                                foreach (string door in SharedDoorUserData.Users[i].ThisUserDoorListPtr)
+                                {
+                                    logAfterInfo += $"{door},";
+                                }
+                                logBeforeInfo = logBeforeInfo.TrimEnd(',');
+                                logAfterInfo = logAfterInfo.TrimEnd(',');
+                                WriteLog(logBeforeInfo, logAfterInfo);
+                            }
+                        }
+                    }
                 }
             }
             else
@@ -1802,7 +2064,101 @@ namespace Eplex_Front_End
             }
 
         }
+        private bool UserAccessEqual(UserAccessInfo Saved, UserAccessInfo New)
+        {
+            if (Saved.ThisUserDoorListPtr.Count != New.ThisUserDoorListPtr.Count) return false;
 
+            for (int i = 0;i < Saved.ThisUserDoorListPtr.Count; i++)
+            {
+                if (Saved.ThisUserDoorListPtr[i] != New.ThisUserDoorListPtr[i]) return false;
+            }
+            return true;
+        }
+
+        private DoorUserFormShr CopyDoorUserData(DoorUserFormShr DataIn)
+        {
+            DoorUserFormShr DataOut = new DoorUserFormShr();
+            DataOut.site = DataIn.site;
+            DataOut.UserDataPathAndFile = DataIn.UserDataPathAndFile;
+            DataOut.Cancel = DataIn.Cancel;
+            DataOut.DoorRowSelected = DataIn.DoorRowSelected;
+            DataOut.LockSelectedPtr = CopyLockSettings(DataIn.LockSelectedPtr);
+            DataOut.LockListPtr = new List<LockSettings>();
+            foreach (LockSettings LLP in DataIn.LockListPtr)
+            {
+                LockSettings Temp = CopyLockSettings(LLP);
+                DataOut.LockListPtr.Add(Temp);
+            }
+            if (DataIn.LockFunctionsPtr != null)
+            {
+                foreach (string LFP in DataIn.LockFunctionsPtr)
+                {
+                    DataOut.LockFunctionsPtr.Add(LFP);
+                }
+            }
+            DataOut.Users = new UserAccessInfo[DataIn.Users.Length];
+            //foreach (UserAccessInfo UAI in DataIn.Users)
+            for (int UsrIdx = 0;UsrIdx < DataIn.Users.Length; UsrIdx++)
+            {
+                UserAccessInfo UserCopy = CopyUserAccessInfo(DataIn.Users[UsrIdx]);
+                DataOut.Users[UsrIdx] = UserCopy;
+            }
+            return DataOut;
+        }
+        private UserAccessInfo CopyUserAccessInfo(UserAccessInfo DataIn)
+        {
+            UserAccessInfo DataOut = new UserAccessInfo();
+            DataOut.Num = DataIn.Num;
+            DataOut.Code = DataIn.Code;
+            DataOut.Name = DataIn.Name;
+            DataOut.Type = DataIn.Type;
+            DataOut.UpdateInProgress = DataIn.UpdateInProgress;
+            DataOut.GroupCount = DataIn.GroupCount;
+            DataOut.ThisUserGroupListPtr = new List<string>();
+            foreach (string GLP in DataIn.ThisUserGroupListPtr)
+            {
+                DataOut.ThisUserGroupListPtr.Add(GLP);
+            }
+            DataOut.ThisUserDoorListPtr = new List<string>();
+            foreach ( string DLP in DataIn.ThisUserDoorListPtr)
+            {
+                DataOut.ThisUserDoorListPtr.Add(DLP);
+            }
+
+            return DataOut;
+        }
+        private LockSettings CopyLockSettings(LockSettings DataIn)
+        {
+            LockSettings DataOut = new LockSettings();
+            DataOut.Name = DataIn.Name;
+            DataOut.ID = DataIn.ID;
+            DataOut.Function = DataIn.Function;
+            DataOut.UnlockTime = DataIn.UnlockTime;
+            DataOut.BuzzerVolume = DataIn.BuzzerVolume;
+            DataOut.TamperCount = DataIn.TamperCount;
+            DataOut.TamperShutdownTime = DataIn.TamperShutdownTime;
+            DataOut.PassageMode = DataIn.PassageMode;
+            DataOut.PassageModeOpenTimeLimit = DataIn.PassageModeOpenTimeLimit;
+            DataOut.LockOutMode = DataIn.LockOutMode;
+            DataOut.AccessCodeLength = DataIn.AccessCodeLength;
+            DataOut.RemoteUnlock = DataIn.RemoteUnlock;
+            DataOut.AuditFlags = new bool[34];
+            foreach (bool AF in DataIn.AuditFlags)
+            {
+                DataOut.AuditFlags.Append(AF);
+            }
+            DataOut.SourceFile = DataIn.SourceFile;
+            if (DataIn.AuditFlagDictionary != null)
+            {
+                foreach (KeyValuePair<string, int> entry in DataIn.AuditFlagDictionary)
+                {
+                    DataOut.AuditFlagDictionary.Add(entry.Key, entry.Value);
+                }
+            }
+
+            return DataOut;
+
+        }
         private void fileLocationsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             /***********************************************************************************************************************
@@ -1811,6 +2167,7 @@ namespace Eplex_Front_End
             RegistrySettingsForm PCMUnitForm = new RegistrySettingsForm(SharedRegistryFormData, DemoPgm);
             this.Visible = false;
             PCMUnitForm.ShowDialog(this);
+            (DataPath, DataPath2020, MUnitFolder, EplexAppPath) = GetRegistryInfo();
             this.Visible = true;
 
         }
@@ -1828,8 +2185,8 @@ namespace Eplex_Front_End
             /***********************************************************************************************************************
             ** Set up a destination for the report file
             ***********************************************************************************************************************/
-            //reportPath = MyDocumentsPath + @"\" + ReportFPath;
-            reportPath = DataPath2020 + ReportFPath;
+            //reportPath = Path.Combine(MyDocumentsPath , ReportFPath);
+            reportPath = Path.Combine(DataPath2020 , ReportFPath);
             if (Directory.Exists(reportPath))
             {
                 // OK, great
@@ -1859,7 +2216,7 @@ namespace Eplex_Front_End
             /***********************************************************************************************************************
             ** Open file explorer to the data paths
             ***********************************************************************************************************************/
-            reportPath = DataPath2020 + ReportFPath;
+            reportPath = Path.Combine(DataPath2020 , ReportFPath);
             if (Directory.Exists(reportPath))
             {
                 // OK great!
@@ -1970,7 +2327,9 @@ namespace Eplex_Front_End
                 int DoorIndex=0;
                 SharedDoorUserData.Users = Users;
                 SharedDoorData.LockListPtr = Lock;
+
                 EditDoorDataSetup(ref DoorIndex);
+                logBeforeInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr, "Before Rename");
                 RenameDoorForm DoorRenameForm = new RenameDoorForm(SharedDoorData, SharedDoorUserData,this);
                 this.Visible = false;
                 DoorRenameForm.ShowDialog(this);
@@ -1997,6 +2356,9 @@ namespace Eplex_Front_End
                         }
                     }
                     WriteEplexUserData(SharedDoorUserData.UserDataPathAndFile);
+                    logAfterInfo = FormatDoorLog(SharedDoorData.LockSelectedPtr, "After Rename");
+                    WriteLog(logBeforeInfo, logAfterInfo);
+
                 }
             }
             else
@@ -2005,5 +2367,60 @@ namespace Eplex_Front_End
             }
 
         }
+
+        private void SiteListView_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F2)
+            {
+                SiteRenameButton_Click(sender, e);
+            }
+        }
+
+        private void browseLogFileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string LogRecord; 
+            string LogOut = null;
+            bool LogRecEncrypted;
+            // Get a random temporary file name w/ path:
+            string tempFile = Path.GetTempFileName();
+            File.Delete(tempFile);
+            // Copy log file to the temporary Log file
+            //File.Copy(SharedSignedInUserData.LogFileDataPathAndFile, tempFile);
+
+            StreamReader LogFilePathAndFileName = new StreamReader(SharedSignedInUserData.LogFileDataPathAndFile);
+            StreamWriter w = File.AppendText(tempFile);
+
+            while (LogFilePathAndFileName.Peek() > -1)
+            {
+                LogRecord = LogFilePathAndFileName.ReadLine();
+                LogRecEncrypted = true;
+                if (LogRecord.IndexOf("Before") > -1)
+                {
+                    LogOut = LogRecord;
+                    LogRecEncrypted = false;
+                }
+                if (LogRecord.IndexOf("After") > -1)
+                {
+                    LogOut = LogRecord;
+                    LogRecEncrypted = false;
+                }
+                if (LogRecord.IndexOf("Generate") > -1)
+                {
+                    LogOut = LogRecord;
+                    LogRecEncrypted = false;
+                }
+                if (LogRecEncrypted == true)
+                {
+                    LogOut = encrypt.AesDecryptor(LogRecord, "Before", ref LogRecEncrypted, this);
+                }
+
+                w.WriteLine(LogOut);
+            }
+            LogFilePathAndFileName.Close();
+            w.Close();
+
+            Process.Start("notepad.exe", tempFile);
+        }
+
     }
 }

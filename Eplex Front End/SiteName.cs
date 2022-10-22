@@ -46,8 +46,8 @@ namespace Eplex_Front_End
         private void myOKButton_Click(object sender, EventArgs e)
         {
             ErrFlag = false;
-            string source = SharedSiteData.SiteDataPath + @"\" + SiteName1.Text;
-            string destination = SharedSiteData.SiteDataPath + @"\" + NewSiteName.Text;
+            string source = SharedSiteData.SiteDataPath2020 + @"\" + SiteName1.Text;
+            string destination = SharedSiteData.SiteDataPath2020 + @"\" + NewSiteName.Text;
             if (SharedSiteData.DialogFunction == "Rename")
             {
                 try

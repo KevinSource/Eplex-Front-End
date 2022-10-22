@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Office.Interop.Excel;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -26,16 +27,18 @@ namespace Eplex_Front_End
         public Color SaveColor;
         public EplexLockManagement.UserFormShr SharedUserData;
         public EplexLockManagement.DoorFormShr SharedDoorData;
+        public EplexLockManagement.SignedInUserShr SharedSignedInUserData;
         private EplexLockManagement _ParentForm;
 
         /***********************************************************************************************************************
         ** This is executed when the form is instantiated.
         ***********************************************************************************************************************/
-        public UserUpdateForm(EplexLockManagement.UserFormShr SharedUserDataIn, EplexLockManagement.DoorFormShr SharedDoorDataIn, EplexLockManagement ParentForm)
+        public UserUpdateForm(EplexLockManagement.UserFormShr SharedUserDataIn, EplexLockManagement.DoorFormShr SharedDoorDataIn, EplexLockManagement.SignedInUserShr SharedSignedInUserDataIn, EplexLockManagement ParentForm)
         {
             InitializeComponent();
             SharedUserData = SharedUserDataIn;
             SharedDoorData = SharedDoorDataIn;
+            SharedSignedInUserData = SharedSignedInUserDataIn;
             _ParentForm = ParentForm;
 
         }
@@ -112,10 +115,6 @@ namespace Eplex_Front_End
                 {
                     NextUser.Enabled = true;
                 }
-                //NextUser.Enabled = SharedUserData.NextButtonEnabled;
-                //PrevUser.Enabled = SharedUserData.PrevButtonEnabled;
-                //NextUser.Visible = SharedUserData.NextButtonEnabled;
-                //PrevUser.Visible = SharedUserData.PrevButtonEnabled;
             }
         }
 
@@ -126,8 +125,9 @@ namespace Eplex_Front_End
         {
             int DoorCodeLen = SharedDoorData.LockSelectedPtr.AccessCodeLength;
             string DoorCodeLenLit = DoorCodeLen.ToString();
+            // The min is set to allow a 0 as a leading digit
             double maxUserCode = Math.Pow(10, SharedDoorData.LockSelectedPtr.AccessCodeLength) - 1;
-            double minUserCode = Math.Pow(10, SharedDoorData.LockSelectedPtr.AccessCodeLength - 2);
+            double minUserCode = (Math.Pow(10, SharedDoorData.LockSelectedPtr.AccessCodeLength -2));
 
             ErrFlag = false;
             StatusMsg.Text = "";
@@ -229,7 +229,7 @@ namespace Eplex_Front_End
                 {
                     ErrFlag = true;
                     StatusMsg.Text = $"Access code must be {DoorCodeLenLit} digits ";
-                }
+                }   
                 /**********************************************************************************************************************
                 * * Make sure the user access code is unique to this site
                 * *********************************************************************************************************************/
@@ -488,6 +488,64 @@ namespace Eplex_Front_End
             SharedUserData.ThisUserDoorListPtr = _ParentForm.Users[UsrNum].ThisUserDoorListPtr;
 //            SharedDoorData.LockListPtr = Lock;
 
+        }
+
+        private void GenerateRandomButton_Click(object sender, EventArgs e)
+        {
+            int maxUserCode = (int) Math.Pow(10, SharedDoorData.LockSelectedPtr.AccessCodeLength) - 1;
+            int minUserCode = (int) (Math.Pow(10, SharedDoorData.LockSelectedPtr.AccessCodeLength-1) - 1);
+
+            Random rnd = new Random();
+            int RndTries = 0;
+            bool AdjacentNumberCheckOK = false;
+            int NewCode = 0;
+            while (AdjacentNumberCheckOK == false)
+            {
+
+                try
+                {
+                    StatusMsg.Text = "x";
+                    while (StatusMsg.Text != "")
+                    {
+                        NewCode = rnd.Next(minUserCode, maxUserCode); // creates a number between Lower bound and upper bound
+                        RndTries += 1;
+                        if (RndTries > 500)
+                        {
+                            throw new Exception("Too Many Tries");
+                        }
+                        AccessCode.Text = NewCode.ToString();
+                        AccessCode_Leave(sender, e);
+                    }
+                }
+                catch
+                {
+                    StatusMsg.Text = "Generate had a problem, retry or enter a number manually.";
+                }
+                if (StatusMsg.Text == "")
+                {
+                    AdjacentNumberCheckOK = AdjacentNumberCheck(NewCode);
+                }
+
+            }
+
+
+        }
+        private bool AdjacentNumberCheck(int NewCode)
+        {
+            int[] DigitsIn = NewCode.ToString().Select(o => Convert.ToInt32(o)).ToArray();
+            for (int i = 0; i <= DigitsIn.Length-2; i++)
+            {
+                if (DigitsIn[i + 1] == DigitsIn[i])
+                {
+                    return false;
+                }
+                if (DigitsIn[i]%2 > 0)  // Is it odd?
+                {
+                    if (DigitsIn[i + 1] == DigitsIn[i] + 1)
+                        return false;
+                }
+            }
+            return true;
         }
     }
 }

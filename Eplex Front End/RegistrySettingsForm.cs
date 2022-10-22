@@ -26,13 +26,53 @@ namespace Eplex_Front_End
 
         private void RegistrySettingsForm_Load(object sender, EventArgs e)
         {
+            string RegistryEntry = "";
+
             AppPath.Text = SharedRegistryFormData.AppPath;
+            ToolTip ToolTip1 = new ToolTip();
+            // Set up the delays for the ToolTip.
+            ToolTip1.AutoPopDelay = 5000;
+            ToolTip1.InitialDelay = 100;
+            ToolTip1.ReshowDelay = 100;
+
+            ToolTip1.SetToolTip(AppPath, "Location of the Eplex Standard application. Used to find the m-Unit program.");
             DataPath.Text = SharedRegistryFormData.DataPath;
+            ToolTip1.SetToolTip(DataPath, "Location of the data files for Eplex Standard software. Should be a local drive. Onedrive locations fail miserably.");
             DataPath2020.Text = SharedRegistryFormData.DataPath2020;
+            ToolTip1.SetToolTip(DataPath2020, "Location of the data files for this application. Network and OneDrive locations work fine.");
             MUnitPath.Text = SharedRegistryFormData.MUnitPath;
+            ToolTip1.SetToolTip(MUnitPath, "Location of the data files used by the Eplex M-Unit Program. This can be set here or in the PCM-Unit program. This program and PCM-Unit both rely on the same registry entry");
             EncryptDataCheckbox.Checked = SharedRegistryFormData.EplexDataEncryption;
             LatestReportPath.Text = SharedRegistryFormData.LatestReportPath;
+            ToolTip1.SetToolTip(LatestReportPath, "Location of most recent Excel report file created by this application.");
+            string ElpexPathKeyLit = @"Software\Kaba\Eplex 5000";
+            RegistryKey key = Registry.CurrentUser.OpenSubKey(ElpexPathKeyLit,true);
+            object o = key.GetValue(SharedRegistryFormData.LatestReportFileLit);
+            if (o != null)
+            {
+                RegistryEntry = o.ToString();
+                SharedRegistryFormData.LatestReportFile = RegistryEntry;
+            }
+            else
+            {
+                SharedRegistryFormData.LatestReportFile = "";
+            }
             LatestReportFile.Text = SharedRegistryFormData.LatestReportFile;
+            ToolTip1.SetToolTip(LatestReportFile, "File name of the most recently generated report file.");
+
+            o = key.GetValue(SharedRegistryFormData.LatestReportBaseFileNameLit);
+            if (o != null)
+            {
+                RegistryEntry = o.ToString();
+                SharedRegistryFormData.LatestReportBaseFileName = RegistryEntry;
+            }
+            else
+            {
+                SharedRegistryFormData.LatestReportBaseFileName = "";
+            }
+            LatestReportBaseFileName.Text = SharedRegistryFormData.LatestReportBaseFileName;
+            ToolTip1.SetToolTip(LatestReportBaseFileName, "The location will be appended to this name.");
+
             StatusMsg.Text = "";
             if (DemoPgm)
             {
@@ -177,11 +217,13 @@ namespace Eplex_Front_End
                 LatestReportPath.Text = LatestReportPath.Text + @"\";
 
             SharedRegistryFormData.LatestReportFile = LatestReportFile.Text;
+            SharedRegistryFormData.LatestReportBaseFileName = LatestReportBaseFileName.Text;
             SharedRegistryFormData.LatestReportPath = LatestReportPath.Text;
 
             if (SharedRegistryFormData.Test == false)
             {
                 Registry.SetValue(SharedRegistryFormData.EplexRegistryKeyPart1, SharedRegistryFormData.LatestReportFileLit, LatestReportFile.Text);
+                Registry.SetValue(SharedRegistryFormData.EplexRegistryKeyPart1, SharedRegistryFormData.LatestReportBaseFileNameLit, LatestReportBaseFileName.Text);
                 Registry.SetValue(SharedRegistryFormData.EplexRegistryKeyPart1, SharedRegistryFormData.LatestReportPathLit, LatestReportPath.Text);
             }
 
@@ -212,6 +254,11 @@ namespace Eplex_Front_End
             {
                 StatusMsg.Text = e1.Message;
             }
+        }
+
+        private void MUnitPath_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -29,6 +29,7 @@ namespace Eplex_Front_End
         Worksheet ws;
         public EplexLockManagement ParentForm;
         public string catchData="";
+        public Int32 ExcelHwnd;
 
 
         public Excel(string path, int sheet, EplexLockManagement _ParentForm)
@@ -36,6 +37,7 @@ namespace Eplex_Front_End
             this.path = path;
             this.sheet = sheet;
             ParentForm = _ParentForm;
+            ExcelHwnd = excel.Hwnd;
         }
         public Worksheet Open(string path, int sheet)
         {
@@ -263,7 +265,7 @@ namespace Eplex_Front_End
                     {
                         fNum++;
                         string newFName = FileNameOnly.Substring(0, FileNameOnly.Length - 5) + fNum.ToString().Trim() + ".xlsx";
-                        path = PathOnly + @"\" + newFName;
+                        path = Path.Combine(PathOnly , newFName);
                     }
                     ParentForm.reportPathAndFileName = path;
                 }
@@ -316,25 +318,39 @@ namespace Eplex_Front_End
         }
         public void Kill()
         {
-            Int32 ExcelHwnd = excel.Hwnd;
             Process[] localExcel = Process.GetProcessesByName("EXCEL");
             foreach (Process Pgm in localExcel)
             {
-                // xlMinimized keeps the screen from flashing when the user interface is made visible to set the MainWindowHandle
-                try
-                {
-                    excel.WindowState = XlWindowState.xlMinimized;
-                }
-                catch (Exception e1)
-                {
-                    // Skip it
-                    catchData = "No window to minimize - excel.Kill: " + path + e1.Message;
-                }
-                // Excel won't have an Hwnd (window Handle) until it's visible.
-                excel.Visible = true;
-                if ((Pgm.ProcessName == "EXCEL") && (ExcelHwnd == Pgm.MainWindowHandle.ToInt32()))
+                /****************************************************************************************************************************
+                * The commented out code will find the instance of excel that this app started. It worked fine.
+                * The problem was, on some computers, ghost excel instances started. The code now kills all excel instances without a
+                * a window (MainWindowHandle = 0)
+                ****************************************************************************************************************************/
+                //// xlMinimized keeps the screen from flashing when the user interface is made visible to set the MainWindowHandle
+                //try
+                //{
+                //    excel.WindowState = XlWindowState.xlMinimized;
+                //}
+                //catch (Exception e1)
+                //{
+                //    // Skip it
+                //    catchData = "No window to minimize - excel.Kill: " + path + e1.Message;
+                //}
+                //// Excel won't have an Hwnd (window Handle) until it's visible.
+                //try
+                //{
+                //    excel.Visible = true;
+                //}
+                //catch (Exception e1)
+                //{
+                //    // Skip it
+                //    catchData = "No window to make visible - excel.Kill: " + path + e1.Message;
+                //}
+                //if ((Pgm.ProcessName == "EXCEL") && (ExcelHwnd == Pgm.MainWindowHandle.ToInt32()))
+                if ((Pgm.ProcessName == "EXCEL") && (Pgm.MainWindowHandle == (IntPtr)0 ))
                 {
                     Pgm.Kill();
+                    System.Windows.Forms.Application.DoEvents();
                 }
             }
         }

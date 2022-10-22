@@ -61,9 +61,11 @@ namespace Eplex_Front_End
             string auditExtractDD = dateParts[2];
             string auditExtractMM = Convert.ToDateTime(auditExtractMMMLit + " 01, 1900").Month.ToString("00");
 
-            string AuditDataPath = reportPath + @"Sites\" + SharedSiteData.site + @"\Lock Audit";
+            string AuditDataPath = Path.Combine(reportPath + @"Sites\");
+            AuditDataPath = Path.Combine(AuditDataPath, SharedSiteData.site);
+            AuditDataPath = Path.Combine(AuditDataPath,@"Lock Audit");
             string auditFileName = auditExtractYYYY + "-" + auditExtractMM + "-" + auditExtractDD + " Audit Report.xlsx";
-            ParentForm.AuditDataPathAndFile = AuditDataPath + @"\" + auditFileName;
+            ParentForm.AuditDataPathAndFile = Path.Combine(AuditDataPath , auditFileName);
 
             writeAuditFileToExcel(ParentForm.AuditDataPathAndFile);
         }

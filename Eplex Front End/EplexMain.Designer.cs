@@ -39,6 +39,7 @@
             this.SiteRenameButton = new System.Windows.Forms.Button();
             this.SiteAdd = new System.Windows.Forms.Button();
             this.DoorGroupBox = new System.Windows.Forms.GroupBox();
+            this.RenameButton = new System.Windows.Forms.Button();
             this.DoorUsersButton = new System.Windows.Forms.Button();
             this.DoorEditButton = new System.Windows.Forms.Button();
             this.DoorDeleteButton = new System.Windows.Forms.Button();
@@ -78,7 +79,7 @@
             this.fileLocationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.fileToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.reportFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.RenameButton = new System.Windows.Forms.Button();
+            this.browseLogFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.SiteGroupBox.SuspendLayout();
             this.DoorGroupBox.SuspendLayout();
             this.UserGroupBox.SuspendLayout();
@@ -114,6 +115,7 @@
             this.SiteListView.Visible = false;
             this.SiteListView.ColumnClick += new System.Windows.Forms.ColumnClickEventHandler(this.SiteListView_ColumnClick);
             this.SiteListView.SelectedIndexChanged += new System.EventHandler(this.SiteListView_SelectedIndexChanged);
+            this.SiteListView.KeyUp += new System.Windows.Forms.KeyEventHandler(this.SiteListView_KeyUp);
             // 
             // DoorListView
             // 
@@ -195,6 +197,16 @@
             this.DoorGroupBox.TabIndex = 4;
             this.DoorGroupBox.TabStop = false;
             this.DoorGroupBox.Text = "Door Actions";
+            // 
+            // RenameButton
+            // 
+            this.RenameButton.Location = new System.Drawing.Point(19, 51);
+            this.RenameButton.Name = "RenameButton";
+            this.RenameButton.Size = new System.Drawing.Size(110, 26);
+            this.RenameButton.TabIndex = 9;
+            this.RenameButton.Text = "Rename";
+            this.RenameButton.UseVisualStyleBackColor = true;
+            this.RenameButton.Click += new System.EventHandler(this.RenameButton_Click);
             // 
             // DoorUsersButton
             // 
@@ -514,6 +526,7 @@
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.printToolStripMenuItem,
             this.generatePCMUnitFileToolStripMenuItem,
+            this.browseLogFileToolStripMenuItem,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
@@ -586,15 +599,12 @@
             this.reportFilesToolStripMenuItem.Text = "Report Files";
             this.reportFilesToolStripMenuItem.Click += new System.EventHandler(this.reportFilesToolStripMenuItem_Click);
             // 
-            // RenameButton
+            // browseLogFileToolStripMenuItem
             // 
-            this.RenameButton.Location = new System.Drawing.Point(19, 51);
-            this.RenameButton.Name = "RenameButton";
-            this.RenameButton.Size = new System.Drawing.Size(110, 26);
-            this.RenameButton.TabIndex = 9;
-            this.RenameButton.Text = "Rename";
-            this.RenameButton.UseVisualStyleBackColor = true;
-            this.RenameButton.Click += new System.EventHandler(this.RenameButton_Click);
+            this.browseLogFileToolStripMenuItem.Name = "browseLogFileToolStripMenuItem";
+            this.browseLogFileToolStripMenuItem.Size = new System.Drawing.Size(201, 22);
+            this.browseLogFileToolStripMenuItem.Text = "Browse Log File";
+            this.browseLogFileToolStripMenuItem.Click += new System.EventHandler(this.browseLogFileToolStripMenuItem_Click);
             // 
             // EplexLockManagement
             // 
@@ -675,6 +685,7 @@
         private System.Windows.Forms.Button AbortButton;
         private System.Windows.Forms.Button DoorUserAbortButton;
         private System.Windows.Forms.Button RenameButton;
+        private System.Windows.Forms.ToolStripMenuItem browseLogFileToolStripMenuItem;
     }
 }
 

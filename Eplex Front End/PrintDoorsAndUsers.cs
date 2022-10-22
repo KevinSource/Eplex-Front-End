@@ -7,6 +7,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.IO;
+using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace Eplex_Front_End
 {
@@ -62,6 +64,13 @@ namespace Eplex_Front_End
             ParentForm.Invoke(new WriteReportChange(WriteReportOnChange), "Opening Excel", totalCompleted, totalToDo);
             //}
             excel = new Excel(reportPathAndFileName, SheetNum, ParentForm);
+            /***********************************************************************************************************************
+            ** Excel was not consistently opening the print file at the end of the process if Excel wasn't already running
+            ** This will start excel if it isn't already started. 
+            ***********************************************************************************************************************/
+            StartExcel();
+            System.Windows.Forms.Application.DoEvents();
+
             UserSht = excel.Open(reportPathAndFileName, SheetNum);
             excel.renameSheet(1, "Users");
             if (WasAbortRequested()) return;
@@ -283,7 +292,7 @@ namespace Eplex_Front_End
             ParentForm.Invoke(new WriteReportChange(WriteReportOnChange), "Writing date and time stamp", totalCompleted, totalToDo);
             r = 1; c = 6;
             string GenMsg = "File Generated: " + DateTime.Now.ToString("MM-dd-yyyy") + " "
-                                                + DateTime.Now.ToString("h:m:ss tt", System.Globalization.CultureInfo.InvariantCulture);
+                                                + DateTime.Now.ToString("h:mm:ss tt", System.Globalization.CultureInfo.InvariantCulture);
 
             excel.WriteCell(r, c, GenMsg);
             excel.Alignment("Left", r, c, r, c);
@@ -294,7 +303,9 @@ namespace Eplex_Front_End
             ParentForm.Invoke(new WriteReportChange(WriteReportOnChange), "Setting Page Attributes", totalCompleted, totalToDo);
             if (WasAbortRequested()) return;
 
+            System.Windows.Forms.Application.DoEvents();
             excel.FitToPage(1,1);
+            System.Windows.Forms.Application.DoEvents();
             excel.PageNumbers();
         }
         private void WriteDoorsToExcel(Excel excel)
@@ -404,7 +415,9 @@ namespace Eplex_Front_End
             ***********************************************************************************************************************/
             ParentForm.Invoke(new WriteReportChange(WriteReportOnChange), "Setting Page Attributes", totalCompleted, totalToDo);
 
+            System.Windows.Forms.Application.DoEvents();
             excel.FitToPage(1,1);
+            System.Windows.Forms.Application.DoEvents();
             excel.PageNumbers();
             if (WasAbortRequested()) return;
         }
@@ -444,12 +457,61 @@ namespace Eplex_Front_End
         }
         private string PutACopyInUsersRegistryLocation(string reportPathAndFileName)
         {
-            string outFile = Path.Combine(SharedRegistryFormData.LatestReportPath, SharedRegistryFormData.LatestReportFile);
+            string LatestReportFileNoExt = Path.GetFileNameWithoutExtension(SharedRegistryFormData.LatestReportBaseFileName);
+            // string LatestReportFileExt = Path.GetExtension(SharedRegistryFormData.LatestReportFile);
+            string LatestReportFileExt = ".xlsx";
+            string LatestFileWithSiteAndExt = LatestReportFileNoExt + " " + SharedSiteData.site +  LatestReportFileExt.Trim();
+            Registry.SetValue(SharedRegistryFormData.EplexRegistryKeyPart1, SharedRegistryFormData.LatestReportFileLit, LatestFileWithSiteAndExt);
+            string outFile = Path.Combine(SharedRegistryFormData.LatestReportPath, LatestFileWithSiteAndExt);
+            FileInfo f = new FileInfo(outFile);
+            DialogResult OKFlag = DialogResult.OK;
+            while (OKFlag  == DialogResult.OK && IsFileLocked(f))
+            {
+                    OKFlag = MessageBox.Show($"{outFile} \n is in use (probably open in Excel), switch to Excel and close the file", "Error in PutACopyInUsersRegistryLocation", MessageBoxButtons.OKCancel);
+            }
             DirectoryInfo di = Directory.CreateDirectory(SharedRegistryFormData.LatestReportPath);
             bool overWrite = true;
-            File.Copy(reportPathAndFileName, Path.Combine(SharedRegistryFormData.LatestReportPath, SharedRegistryFormData.LatestReportFile), overWrite);
+            File.Copy(reportPathAndFileName, Path.Combine(SharedRegistryFormData.LatestReportPath, outFile), overWrite);
+            // Console.WriteLine(outFile);
             return outFile;
 
+        }
+        public void StartExcel()
+        {
+            //*************************************************************************************************
+            //* This checks to see if Excel is running. If not, it starts it.
+            //* The excel being used by this application won't have a window handle, so if an Excel
+            //* instance is founf WITH a window handle, then a visible Excel is running, so don't
+            //* start another one.
+            //*************************************************************************************************
+            Process[] localExcel = Process.GetProcessesByName("EXCEL");
+            foreach (Process Pgm in localExcel)
+                if (Pgm.MainWindowHandle != (IntPtr) 0) return;
+            Process p = new Process();
+            p.StartInfo = new ProcessStartInfo("Excel");
+            p.StartInfo.WindowStyle = ProcessWindowStyle.Minimized;       
+            p.Start();
+        }
+        protected virtual bool IsFileLocked(FileInfo file)
+        {
+            try
+            {
+                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                    stream.Close();
+                }
+            }
+            catch (IOException)
+            {
+                //the file is unavailable because it is:
+                //still being written to
+                //or being processed by another thread
+                //or does not exist (has already been processed)
+                return true;
+            }
+
+            //file is not locked
+            return false;
         }
     }
 }

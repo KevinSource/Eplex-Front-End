@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.ApplicationPathLit = new System.Windows.Forms.Label();
             this.DataPathLit = new System.Windows.Forms.Label();
             this.MUnitLit = new System.Windows.Forms.Label();
@@ -63,6 +64,9 @@
             this.DataPath2020Copy = new System.Windows.Forms.Button();
             this.DataPath2020Explorer = new System.Windows.Forms.Button();
             this.DataPath2020Update = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
+            this.LatestReportBaseFileName = new System.Windows.Forms.TextBox();
+            this.latestReportBaseFileNameToolTip = new System.Windows.Forms.ToolTip(this.components);
             this.statusStrip1.SuspendLayout();
             this.DataSecurityGrpBoxLit.SuspendLayout();
             this.ReportCopyGroupBox.SuspendLayout();
@@ -124,12 +128,13 @@
             this.MUnitPath.Size = new System.Drawing.Size(623, 22);
             this.MUnitPath.TabIndex = 5;
             this.MUnitPath.Text = "MUnitPath";
+            this.MUnitPath.TextChanged += new System.EventHandler(this.MUnitPath_TextChanged);
             // 
             // statusStrip1
             // 
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.StatusMsg});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 475);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 547);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Size = new System.Drawing.Size(1168, 22);
             this.statusStrip1.TabIndex = 6;
@@ -144,7 +149,7 @@
             // myOKButon
             // 
             this.myOKButon.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.myOKButon.Location = new System.Drawing.Point(188, 419);
+            this.myOKButon.Location = new System.Drawing.Point(184, 510);
             this.myOKButon.Name = "myOKButon";
             this.myOKButon.Size = new System.Drawing.Size(105, 34);
             this.myOKButon.TabIndex = 7;
@@ -155,7 +160,7 @@
             // myCancelButton
             // 
             this.myCancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.myCancelButton.Location = new System.Drawing.Point(299, 419);
+            this.myCancelButton.Location = new System.Drawing.Point(295, 510);
             this.myCancelButton.Name = "myCancelButton";
             this.myCancelButton.Size = new System.Drawing.Size(105, 34);
             this.myCancelButton.TabIndex = 8;
@@ -275,6 +280,8 @@
             // 
             // ReportCopyGroupBox
             // 
+            this.ReportCopyGroupBox.Controls.Add(this.LatestReportBaseFileName);
+            this.ReportCopyGroupBox.Controls.Add(this.label1);
             this.ReportCopyGroupBox.Controls.Add(this.LatestReportFileOpen);
             this.ReportCopyGroupBox.Controls.Add(this.LatestReportFileExplore);
             this.ReportCopyGroupBox.Controls.Add(this.LatestReportCopy);
@@ -284,34 +291,34 @@
             this.ReportCopyGroupBox.Controls.Add(this.LatestReportPathLit);
             this.ReportCopyGroupBox.Location = new System.Drawing.Point(188, 250);
             this.ReportCopyGroupBox.Name = "ReportCopyGroupBox";
-            this.ReportCopyGroupBox.Size = new System.Drawing.Size(869, 148);
+            this.ReportCopyGroupBox.Size = new System.Drawing.Size(929, 220);
             this.ReportCopyGroupBox.TabIndex = 19;
             this.ReportCopyGroupBox.TabStop = false;
             this.ReportCopyGroupBox.Text = "Most Recently Run Report";
             // 
             // LatestReportFileOpen
             // 
-            this.LatestReportFileOpen.Location = new System.Drawing.Point(194, 104);
+            this.LatestReportFileOpen.Location = new System.Drawing.Point(190, 152);
             this.LatestReportFileOpen.Name = "LatestReportFileOpen";
             this.LatestReportFileOpen.Size = new System.Drawing.Size(78, 29);
             this.LatestReportFileOpen.TabIndex = 23;
-            this.LatestReportFileOpen.Text = "Open";
+            this.LatestReportFileOpen.Text = "Open Report";
             this.LatestReportFileOpen.UseVisualStyleBackColor = true;
             this.LatestReportFileOpen.Click += new System.EventHandler(this.LatestReportFileOpen_Click);
             // 
             // LatestReportFileExplore
             // 
-            this.LatestReportFileExplore.Location = new System.Drawing.Point(535, 104);
+            this.LatestReportFileExplore.Location = new System.Drawing.Point(531, 152);
             this.LatestReportFileExplore.Name = "LatestReportFileExplore";
-            this.LatestReportFileExplore.Size = new System.Drawing.Size(78, 29);
+            this.LatestReportFileExplore.Size = new System.Drawing.Size(160, 29);
             this.LatestReportFileExplore.TabIndex = 20;
-            this.LatestReportFileExplore.Text = "File Explorer";
+            this.LatestReportFileExplore.Text = "File Explorer on Report Path";
             this.LatestReportFileExplore.UseVisualStyleBackColor = true;
             this.LatestReportFileExplore.Click += new System.EventHandler(this.LatestReportFileExplore_Click);
             // 
             // LatestReportCopy
             // 
-            this.LatestReportCopy.Location = new System.Drawing.Point(288, 104);
+            this.LatestReportCopy.Location = new System.Drawing.Point(284, 152);
             this.LatestReportCopy.Name = "LatestReportCopy";
             this.LatestReportCopy.Size = new System.Drawing.Size(228, 29);
             this.LatestReportCopy.TabIndex = 20;
@@ -322,7 +329,7 @@
             // LatestReportFile
             // 
             this.LatestReportFile.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.LatestReportFile.Location = new System.Drawing.Point(194, 67);
+            this.LatestReportFile.Location = new System.Drawing.Point(195, 107);
             this.LatestReportFile.Name = "LatestReportFile";
             this.LatestReportFile.Size = new System.Drawing.Size(623, 22);
             this.LatestReportFile.TabIndex = 22;
@@ -332,7 +339,7 @@
             // 
             this.LatestReportFileLit.AutoSize = true;
             this.LatestReportFileLit.Font = new System.Drawing.Font("Microsoft Sans Serif", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.LatestReportFileLit.Location = new System.Drawing.Point(27, 64);
+            this.LatestReportFileLit.Location = new System.Drawing.Point(28, 104);
             this.LatestReportFileLit.Name = "LatestReportFileLit";
             this.LatestReportFileLit.Size = new System.Drawing.Size(155, 24);
             this.LatestReportFileLit.TabIndex = 21;
@@ -406,11 +413,30 @@
             this.DataPath2020Update.UseVisualStyleBackColor = true;
             this.DataPath2020Update.Click += new System.EventHandler(this.DataPath2020Update_Click);
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label1.Location = new System.Drawing.Point(29, 65);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(258, 24);
+            this.label1.TabIndex = 24;
+            this.label1.Text = "Latest Report Base File Name";
+            // 
+            // LatestReportBaseFileName
+            // 
+            this.LatestReportBaseFileName.Location = new System.Drawing.Point(293, 69);
+            this.LatestReportBaseFileName.Name = "LatestReportBaseFileName";
+            this.LatestReportBaseFileName.Size = new System.Drawing.Size(524, 20);
+            this.LatestReportBaseFileName.TabIndex = 25;
+            this.LatestReportBaseFileName.Text = "LatestReportBaseFileName";
+            this.latestReportBaseFileNameToolTip.SetToolTip(this.LatestReportBaseFileName, "The location will be appended to this name.");
+            // 
             // RegistrySettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1168, 497);
+            this.ClientSize = new System.Drawing.Size(1168, 569);
             this.Controls.Add(this.DataPath2020Update);
             this.Controls.Add(this.DataPath2020Explorer);
             this.Controls.Add(this.DataPath2020Copy);
@@ -487,5 +513,8 @@
         private System.Windows.Forms.Button DataPath2020Copy;
         private System.Windows.Forms.Button DataPath2020Explorer;
         private System.Windows.Forms.Button DataPath2020Update;
+        private System.Windows.Forms.TextBox LatestReportBaseFileName;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.ToolTip latestReportBaseFileNameToolTip;
     }
 }
